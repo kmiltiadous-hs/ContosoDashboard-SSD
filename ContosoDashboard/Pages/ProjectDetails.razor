@@ -5,6 +5,7 @@
 @using System.Security.Claims
 @attribute [Authorize]
 @inject IProjectService ProjectService
+@inject IDocumentService DocumentService
 @inject NavigationManager NavigationManager
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
@@ -151,9 +152,56 @@
                         }
                     </div>
                 </div>
-            </div>
 
-            <div class="col-md-4">
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Project Documents</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (projectDocuments == null)
+                        {
+                            <p><em>Loading...</em></p>
+                        }
+                        else if (projectDocuments.Count == 0)
+                        {
+                            <p class="text-muted">No documents have been uploaded to this project.</p>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Title</th>
+                                            <th>Category</th>
+                                            <th>Uploaded By</th>
+                                            <th>Upload Date</th>
+                                            <th>Size</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var document in projectDocuments)
+                                        {
+                                            <tr>
+                                                <td>@document.Title</td>
+                                                <td>@document.Category</td>
+                                                <td>@document.UploadedByUser.DisplayName</td>
+                                                <td>@document.UploadedDate.ToString("MMM dd, yyyy")</td>
+                                                <td>@FormatFileSize(document.FileSizeBytes)</td>
+                                                <td>
+                                                    <span class="badge bg-@GetScanStatusColor(document.ScanStatus)">
+                                                        @document.ScanStatus
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </div>
                 <div class="card mb-4">
                     <div class="card-header">
                         <h5 class="mb-0">Team Members</h5>
@@ -238,6 +286,7 @@
 
     private Project? project;
     private int currentUserId = 0;
+    private List<Document>? projectDocuments;
 
     protected override async Task OnInitializedAsync()
     {
@@ -259,6 +308,17 @@
         {
             NavigationManager.NavigateTo("/projects");
         }
+        else
+        {
+            try
+            {
+                projectDocuments = (await DocumentService.GetProjectDocumentsAsync(currentUserId, ProjectId, new DocumentListQuery())).ToList();
+            }
+            catch (UnauthorizedDocumentAccessException)
+            {
+                projectDocuments = new List<Document>();
+            }
+        }
     }
 
     private string GetStatusColor(ProjectStatus status)
@@ -271,6 +331,21 @@
             ProjectStatus.Completed => "success",
             _ => "secondary"
         };
+    }
+
+    private static string GetScanStatusColor(DocumentScanStatus status) => status switch
+    {
+        DocumentScanStatus.Available => "success",
+        DocumentScanStatus.PendingScan => "warning",
+        DocumentScanStatus.Rejected => "danger",
+        _ => "secondary"
+    };
+
+    private static string FormatFileSize(long bytes)
+    {
+        return bytes < 1024 * 1024
+            ? $"{bytes / 1024.0:F1} KB"
+            : $"{bytes / (1024.0 * 1024.0):F1} MB";
     }
 
     private string GetTaskStatusColor(Models.TaskStatus status)

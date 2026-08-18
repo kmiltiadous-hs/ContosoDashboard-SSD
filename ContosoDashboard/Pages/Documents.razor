@@ -3,6 +3,7 @@
 @using ContosoDashboard.Models
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Rendering
 @using System.Security.Claims
 @attribute [Authorize]
 @inject IDocumentService DocumentService
@@ -99,6 +100,94 @@
             </EditForm>
         </div>
     </div>
+
+    <div class="row mt-4">
+        <div class="col">
+            <h2>Search Documents</h2>
+            <div class="input-group mb-3" style="max-width: 500px;">
+                <input class="form-control" placeholder="Search by title, description, tags, uploader, or project..."
+                       @bind="searchTerm" @bind:event="oninput" @onkeyup="HandleSearchKeyUpAsync" />
+                <button class="btn btn-outline-secondary" type="button" @onclick="HandleSearchAsync">Search</button>
+            </div>
+
+            @if (hasSearched)
+            {
+                @if (searchResults == null || searchResults.Count == 0)
+                {
+                    <p class="text-muted">No documents found.</p>
+                }
+                else
+                {
+                    @RenderDocumentTable(searchResults)
+                }
+            }
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col">
+            <h2>My Documents</h2>
+
+            <div class="row g-2 mb-3">
+                <div class="col-auto">
+                    <select class="form-select form-select-sm" @bind="sortBy" @bind:after="LoadMyDocumentsAsync">
+                        <option value="date">Sort by Upload Date</option>
+                        <option value="title">Sort by Title</option>
+                        <option value="category">Sort by Category</option>
+                        <option value="size">Sort by File Size</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <select class="form-select form-select-sm" @bind="sortDescending" @bind:after="LoadMyDocumentsAsync">
+                        <option value="true">Descending</option>
+                        <option value="false">Ascending</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <select class="form-select form-select-sm" @bind="categoryFilter" @bind:after="LoadMyDocumentsAsync">
+                        <option value="">All Categories</option>
+                        <option value="Project Documents">Project Documents</option>
+                        <option value="Team Resources">Team Resources</option>
+                        <option value="Personal Files">Personal Files</option>
+                        <option value="Reports">Reports</option>
+                        <option value="Presentations">Presentations</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <select class="form-select form-select-sm" @bind="projectFilter" @bind:after="LoadMyDocumentsAsync">
+                        <option value="">All Projects</option>
+                        @if (myProjects != null)
+                        {
+                            @foreach (var project in myProjects)
+                            {
+                                <option value="@project.ProjectId">@project.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <input type="date" class="form-control form-control-sm" @bind="fromDate" @bind:after="LoadMyDocumentsAsync" />
+                </div>
+                <div class="col-auto">
+                    <input type="date" class="form-control form-control-sm" @bind="toDate" @bind:after="LoadMyDocumentsAsync" />
+                </div>
+            </div>
+
+            @if (myDocuments == null)
+            {
+                <p><em>Loading...</em></p>
+            }
+            else if (myDocuments.Count == 0)
+            {
+                <p class="text-muted">No documents found.</p>
+            }
+            else
+            {
+                @RenderDocumentTable(myDocuments)
+            }
+        </div>
+    </div>
 </div>
 
 @code {
@@ -112,6 +201,18 @@
     private int currentUserId;
     private List<Project>? myProjects;
 
+    private List<Document>? myDocuments;
+    private string sortBy = "date";
+    private bool sortDescending = true;
+    private string categoryFilter = string.Empty;
+    private string projectFilter = string.Empty;
+    private DateTime? fromDate;
+    private DateTime? toDate;
+
+    private string searchTerm = string.Empty;
+    private List<Document>? searchResults;
+    private bool hasSearched;
+
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
@@ -124,7 +225,35 @@
         if (currentUserId > 0)
         {
             myProjects = await ProjectService.GetUserProjectsAsync(currentUserId);
+            await LoadMyDocumentsAsync();
         }
+    }
+
+    private async Task LoadMyDocumentsAsync()
+    {
+        var query = new DocumentListQuery(
+            SortBy: sortBy,
+            SortDescending: sortDescending,
+            Category: string.IsNullOrEmpty(categoryFilter) ? null : categoryFilter,
+            ProjectId: string.IsNullOrEmpty(projectFilter) ? null : int.Parse(projectFilter),
+            FromDate: fromDate,
+            ToDate: toDate);
+
+        myDocuments = (await DocumentService.GetMyDocumentsAsync(currentUserId, query)).ToList();
+    }
+
+    private async Task HandleSearchKeyUpAsync(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await HandleSearchAsync();
+        }
+    }
+
+    private async Task HandleSearchAsync()
+    {
+        hasSearched = true;
+        searchResults = (await DocumentService.SearchAsync(currentUserId, searchTerm)).ToList();
     }
 
     private void OnFileSelected(InputFileChangeEventArgs e)
@@ -179,6 +308,7 @@
             successMessage = "Document uploaded successfully. It is pending a virus scan before it becomes available.";
             uploadModel = new UploadFormModel();
             selectedFile = null;
+            await LoadMyDocumentsAsync();
         }
         catch (DuplicateDocumentException)
         {
@@ -204,6 +334,70 @@
             ? $"{bytes / 1024.0:F1} KB"
             : $"{bytes / (1024.0 * 1024.0):F1} MB";
     }
+
+    private static RenderFragment RenderDocumentTable(List<Document> documents) => builder =>
+    {
+        var seq = 0;
+        builder.OpenElement(seq++, "div");
+        builder.AddAttribute(seq++, "class", "table-responsive");
+        builder.OpenElement(seq++, "table");
+        builder.AddAttribute(seq++, "class", "table table-hover");
+        builder.OpenElement(seq++, "thead");
+        builder.OpenElement(seq++, "tr");
+        foreach (var header in new[] { "Title", "Category", "Upload Date", "Size", "Project", "Status" })
+        {
+            builder.OpenElement(seq++, "th");
+            builder.AddContent(seq++, header);
+            builder.CloseElement();
+        }
+        builder.CloseElement();
+        builder.CloseElement();
+        builder.OpenElement(seq++, "tbody");
+        foreach (var document in documents)
+        {
+            builder.OpenElement(seq++, "tr");
+
+            builder.OpenElement(seq++, "td");
+            builder.AddContent(seq++, document.Title);
+            builder.CloseElement();
+
+            builder.OpenElement(seq++, "td");
+            builder.AddContent(seq++, document.Category);
+            builder.CloseElement();
+
+            builder.OpenElement(seq++, "td");
+            builder.AddContent(seq++, document.UploadedDate.ToString("MMM dd, yyyy"));
+            builder.CloseElement();
+
+            builder.OpenElement(seq++, "td");
+            builder.AddContent(seq++, FormatSize(document.FileSizeBytes));
+            builder.CloseElement();
+
+            builder.OpenElement(seq++, "td");
+            builder.AddContent(seq++, document.Project?.Name ?? "Personal");
+            builder.CloseElement();
+
+            builder.OpenElement(seq++, "td");
+            builder.OpenElement(seq++, "span");
+            builder.AddAttribute(seq++, "class", $"badge bg-{GetStatusColor(document.ScanStatus)}");
+            builder.AddContent(seq++, document.ScanStatus.ToString());
+            builder.CloseElement();
+            builder.CloseElement();
+
+            builder.CloseElement();
+        }
+        builder.CloseElement();
+        builder.CloseElement();
+        builder.CloseElement();
+    };
+
+    private static string GetStatusColor(DocumentScanStatus status) => status switch
+    {
+        DocumentScanStatus.Available => "success",
+        DocumentScanStatus.PendingScan => "warning",
+        DocumentScanStatus.Rejected => "danger",
+        _ => "secondary"
+    };
 
     private class UploadFormModel
     {

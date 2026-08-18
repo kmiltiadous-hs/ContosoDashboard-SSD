@@ -110,17 +110,106 @@ public class DocumentService : IDocumentService
         return document;
     }
 
-    public Task<IReadOnlyList<Document>> GetMyDocumentsAsync(int userId, DocumentListQuery query) =>
-        throw new NotImplementedException("Implemented in User Story 2 (Browse, Search, and Organize Documents).");
+    public async Task<IReadOnlyList<Document>> GetMyDocumentsAsync(int userId, DocumentListQuery query)
+    {
+        var documentsQuery = _context.Documents
+            .Include(d => d.UploadedByUser)
+            .Include(d => d.Project)
+            .Where(d => d.UploadedByUserId == userId);
 
-    public Task<IReadOnlyList<Document>> GetProjectDocumentsAsync(int userId, int projectId, DocumentListQuery query) =>
-        throw new NotImplementedException("Implemented in User Story 2 (Browse, Search, and Organize Documents).");
+        return await ApplyQuery(documentsQuery, query).ToListAsync();
+    }
+
+    public async Task<IReadOnlyList<Document>> GetProjectDocumentsAsync(int userId, int projectId, DocumentListQuery query)
+    {
+        var project = await _context.Projects.FindAsync(projectId)
+            ?? throw new UnauthorizedDocumentAccessException("Project does not exist.");
+
+        var isMember = project.ProjectManagerId == userId ||
+            await _context.ProjectMembers.AnyAsync(pm => pm.ProjectId == projectId && pm.UserId == userId);
+        if (!isMember)
+        {
+            throw new UnauthorizedDocumentAccessException("User is not a current member of the specified project.");
+        }
+
+        var documentsQuery = _context.Documents
+            .Include(d => d.UploadedByUser)
+            .Include(d => d.Project)
+            .Where(d => d.ProjectId == projectId);
+
+        return await ApplyQuery(documentsQuery, query).ToListAsync();
+    }
 
     public Task<IReadOnlyList<Document>> GetSharedWithMeAsync(int userId) =>
         throw new NotImplementedException("Implemented in User Story 4 (Share Documents with Notifications).");
 
-    public Task<IReadOnlyList<Document>> SearchAsync(int userId, string searchTerm) =>
-        throw new NotImplementedException("Implemented in User Story 2 (Browse, Search, and Organize Documents).");
+    public async Task<IReadOnlyList<Document>> SearchAsync(int userId, string searchTerm)
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            return Array.Empty<Document>();
+        }
+
+        var term = searchTerm.Trim();
+
+        var accessibleProjectIds = await _context.ProjectMembers
+            .Where(pm => pm.UserId == userId)
+            .Select(pm => pm.ProjectId)
+            .Union(_context.Projects.Where(p => p.ProjectManagerId == userId).Select(p => p.ProjectId))
+            .ToListAsync();
+
+        var sharedDocumentIds = await _context.DocumentShares
+            .Where(s => s.SharedWithUserId == userId)
+            .Select(s => s.DocumentId)
+            .ToListAsync();
+
+        return await _context.Documents
+            .Include(d => d.UploadedByUser)
+            .Include(d => d.Project)
+            .Where(d =>
+                d.UploadedByUserId == userId ||
+                (d.ProjectId != null && accessibleProjectIds.Contains(d.ProjectId.Value)) ||
+                sharedDocumentIds.Contains(d.DocumentId))
+            .Where(d =>
+                d.Title.Contains(term) ||
+                (d.Description != null && d.Description.Contains(term)) ||
+                (d.Tags != null && d.Tags.Contains(term)) ||
+                d.UploadedByUser.DisplayName.Contains(term) ||
+                (d.Project != null && d.Project.Name.Contains(term)))
+            .ToListAsync();
+    }
+
+    private static IQueryable<Document> ApplyQuery(IQueryable<Document> documents, DocumentListQuery query)
+    {
+        if (!string.IsNullOrWhiteSpace(query.Category))
+        {
+            documents = documents.Where(d => d.Category == query.Category);
+        }
+
+        if (query.ProjectId is int projectId)
+        {
+            documents = documents.Where(d => d.ProjectId == projectId);
+        }
+
+        if (query.FromDate is DateTime fromDate)
+        {
+            documents = documents.Where(d => d.UploadedDate >= fromDate);
+        }
+
+        if (query.ToDate is DateTime toDate)
+        {
+            documents = documents.Where(d => d.UploadedDate <= toDate);
+        }
+
+        return query.SortBy?.Trim().ToLowerInvariant() switch
+        {
+            "title" => query.SortDescending ? documents.OrderByDescending(d => d.Title) : documents.OrderBy(d => d.Title),
+            "category" => query.SortDescending ? documents.OrderByDescending(d => d.Category) : documents.OrderBy(d => d.Category),
+            "size" => query.SortDescending ? documents.OrderByDescending(d => d.FileSizeBytes) : documents.OrderBy(d => d.FileSizeBytes),
+            "date" => query.SortDescending ? documents.OrderByDescending(d => d.UploadedDate) : documents.OrderBy(d => d.UploadedDate),
+            _ => documents.OrderByDescending(d => d.UploadedDate)
+        };
+    }
 
     public Task<Stream> DownloadAsync(int userId, int documentId) =>
         throw new NotImplementedException("Implemented in User Story 3 (Manage Document Lifecycle).");

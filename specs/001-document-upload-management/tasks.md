@@ -94,16 +94,16 @@ Single ASP.NET Core project (`ContosoDashboard/`) extended in place, plus two ne
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T032 [P] [US2] Unit tests for `GetMyDocumentsAsync`, `GetProjectDocumentsAsync`, and `SearchAsync` authorization filtering (only authorized/`Available` documents returned) in `ContosoDashboard.Tests/Services/DocumentQueryAuthorizationTests.cs`
+- [X] T032 [P] [US2] Unit tests for `GetMyDocumentsAsync`, `GetProjectDocumentsAsync`, and `SearchAsync` authorization filtering (only authorized/`Available` documents returned) in `ContosoDashboard.Tests/Services/DocumentQueryAuthorizationTests.cs`
 
 ### Implementation for User Story 2
 
-- [ ] T033 [US2] Implement `DocumentService.GetMyDocumentsAsync` with `DocumentListQuery` sort (title/date/category/size) and filter (category/project/date range) support in `ContosoDashboard/Services/DocumentService.cs`
-- [ ] T034 [US2] Implement `DocumentService.GetProjectDocumentsAsync` re-checking current project membership at call time in `ContosoDashboard/Services/DocumentService.cs`
-- [ ] T035 [US2] Implement `DocumentService.SearchAsync` (title/description/tags/uploader/project, authorized-only results, target <2s per FR-029) in `ContosoDashboard/Services/DocumentService.cs`
-- [ ] T036 [US2] Build "My Documents" list UI (title, category, upload date, size, project columns; sort/filter controls) in `ContosoDashboard/Pages/Documents.razor` (depends on T033)
-- [ ] T037 [US2] Add "Project Documents" section to `ContosoDashboard/Pages/ProjectDetails.razor` (depends on T034)
-- [ ] T038 [US2] Add search bar + results list to `ContosoDashboard/Pages/Documents.razor` (depends on T035)
+- [X] T033 [US2] Implement `DocumentService.GetMyDocumentsAsync` with `DocumentListQuery` sort (title/date/category/size) and filter (category/project/date range) support in `ContosoDashboard/Services/DocumentService.cs`
+- [X] T034 [US2] Implement `DocumentService.GetProjectDocumentsAsync` re-checking current project membership at call time in `ContosoDashboard/Services/DocumentService.cs`
+- [X] T035 [US2] Implement `DocumentService.SearchAsync` (title/description/tags/uploader/project, authorized-only results, target <2s per FR-029) in `ContosoDashboard/Services/DocumentService.cs`
+- [X] T036 [US2] Build "My Documents" list UI (title, category, upload date, size, project columns; sort/filter controls) in `ContosoDashboard/Pages/Documents.razor` (depends on T033)
+- [X] T037 [US2] Add "Project Documents" section to `ContosoDashboard/Pages/ProjectDetails.razor` (depends on T034)
+- [X] T038 [US2] Add search bar + results list to `ContosoDashboard/Pages/Documents.razor` (depends on T035)
 
 **Checkpoint**: User Stories 1 AND 2 both work independently — documents can be uploaded, browsed, filtered, and searched with correct authorization scoping.
 

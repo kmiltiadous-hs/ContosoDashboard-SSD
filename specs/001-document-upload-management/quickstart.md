@@ -5,6 +5,23 @@
 - .NET 8 SDK installed.
 - SQL Server LocalDB available (existing project default connection string in
   [appsettings.json](../../ContosoDashboard/appsettings.json)).
+- Node.js + the **Azurite** storage emulator, for the offline/local Queue
+  Storage used by the background virus-scan job:
+
+  ```powershell
+  npm install -g azurite
+  azurite --silent --location .azurite
+  ```
+
+  Leave Azurite running in its own terminal before starting the web app or
+  the `ContosoDashboard.ScanFunction` app — both use
+  `QueueStorage:ConnectionString = UseDevelopmentStorage=true`, which points
+  at Azurite.
+- Azure Functions Core Tools, to run `ContosoDashboard.ScanFunction` locally:
+
+  ```powershell
+  npm install -g azure-functions-core-tools@4 --unsafe-perm true
+  ```
 - Clean database state before first-time testing (per stakeholder doc):
 
   ```powershell
@@ -25,6 +42,14 @@ The app seeds four mock users (Administrator, Project Manager, Team Lead,
 Employee) and one sample project — see
 [ApplicationDbContext.cs](../../ContosoDashboard/Data/ApplicationDbContext.cs).
 Log in via the mock login dropdown at `/login` as any seeded user.
+
+In a separate terminal (with Azurite already running), start the background
+virus-scan Function app so uploaded documents transition out of "Pending Scan":
+
+```powershell
+cd ContosoDashboard.ScanFunction
+func start
+```
 
 ## Validation Scenarios
 

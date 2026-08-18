@@ -1,0 +1,222 @@
+@page "/documents"
+@using ContosoDashboard.Services
+@using ContosoDashboard.Models
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using System.Security.Claims
+@attribute [Authorize]
+@inject IDocumentService DocumentService
+@inject IProjectService ProjectService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Documents - ContosoDashboard</PageTitle>
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>Documents</h1>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <h2>Upload a Document</h2>
+
+            @if (!string.IsNullOrEmpty(successMessage))
+            {
+                <div class="alert alert-success">@successMessage</div>
+            }
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger">@errorMessage</div>
+            }
+
+            <EditForm Model="uploadModel" OnValidSubmit="HandleUploadAsync">
+                <DataAnnotationsValidator />
+
+                <div class="mb-3">
+                    <label class="form-label">File</label>
+                    <InputFile class="form-control" OnChange="OnFileSelected" />
+                    @if (selectedFile != null)
+                    {
+                        <div class="form-text">@selectedFile.Name (@FormatSize(selectedFile.Size))</div>
+                    }
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Title</label>
+                    <InputText class="form-control" @bind-Value="uploadModel.Title" />
+                    <ValidationMessage For="@(() => uploadModel.Title)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Category</label>
+                    <select class="form-select" @bind="uploadModel.Category">
+                        <option value="">Select a category...</option>
+                        <option value="Project Documents">Project Documents</option>
+                        <option value="Team Resources">Team Resources</option>
+                        <option value="Personal Files">Personal Files</option>
+                        <option value="Reports">Reports</option>
+                        <option value="Presentations">Presentations</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Description (optional)</label>
+                    <InputTextArea class="form-control" @bind-Value="uploadModel.Description" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Project (optional)</label>
+                    <select class="form-select" @bind="uploadModel.ProjectId">
+                        <option value="">Personal (no project)</option>
+                        @if (myProjects != null)
+                        {
+                            @foreach (var project in myProjects)
+                            {
+                                <option value="@project.ProjectId">@project.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Tags (optional, comma-separated)</label>
+                    <InputText class="form-control" @bind-Value="uploadModel.Tags" />
+                </div>
+
+                @if (isUploading)
+                {
+                    <div class="progress mb-3">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%">Uploading...</div>
+                    </div>
+                }
+
+                <button type="submit" class="btn btn-primary" disabled="@(isUploading || selectedFile == null)">
+                    Upload
+                </button>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+@code {
+    private const long MaxFileSizeBytes = 25 * 1024 * 1024;
+
+    private UploadFormModel uploadModel = new();
+    private IBrowserFile? selectedFile;
+    private bool isUploading;
+    private string? successMessage;
+    private string? errorMessage;
+    private int currentUserId;
+    private List<Project>? myProjects;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userIdClaim = authState.User.FindFirst(ClaimTypes.NameIdentifier);
+        if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
+        {
+            currentUserId = userId;
+        }
+
+        if (currentUserId > 0)
+        {
+            myProjects = await ProjectService.GetUserProjectsAsync(currentUserId);
+        }
+    }
+
+    private void OnFileSelected(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+        errorMessage = null;
+        successMessage = null;
+    }
+
+    private async Task HandleUploadAsync()
+    {
+        if (selectedFile == null)
+        {
+            errorMessage = "Please select a file to upload.";
+            return;
+        }
+
+        if (selectedFile.Size > MaxFileSizeBytes)
+        {
+            errorMessage = "File exceeds the 25 MB size limit.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(uploadModel.Category))
+        {
+            errorMessage = "Please select a category.";
+            return;
+        }
+
+        isUploading = true;
+        successMessage = null;
+        errorMessage = null;
+
+        try
+        {
+            await using var stream = selectedFile.OpenReadStream(MaxFileSizeBytes);
+            int? projectId = string.IsNullOrEmpty(uploadModel.ProjectId) ? null : int.Parse(uploadModel.ProjectId);
+
+            var request = new UploadDocumentRequest(
+                FileStream: stream,
+                FileName: selectedFile.Name,
+                ContentType: string.IsNullOrEmpty(selectedFile.ContentType) ? "application/octet-stream" : selectedFile.ContentType,
+                FileSizeBytes: selectedFile.Size,
+                Title: uploadModel.Title,
+                Category: uploadModel.Category,
+                Description: uploadModel.Description,
+                ProjectId: projectId,
+                Tags: uploadModel.Tags);
+
+            await DocumentService.UploadAsync(currentUserId, request);
+
+            successMessage = "Document uploaded successfully. It is pending a virus scan before it becomes available.";
+            uploadModel = new UploadFormModel();
+            selectedFile = null;
+        }
+        catch (DuplicateDocumentException)
+        {
+            errorMessage = "You have already uploaded a document with this title, project, and content.";
+        }
+        catch (UnauthorizedDocumentAccessException)
+        {
+            errorMessage = "You are not authorized to upload documents to the selected project.";
+        }
+        catch (ArgumentException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isUploading = false;
+        }
+    }
+
+    private static string FormatSize(long bytes)
+    {
+        return bytes < 1024 * 1024
+            ? $"{bytes / 1024.0:F1} KB"
+            : $"{bytes / (1024.0 * 1024.0):F1} MB";
+    }
+
+    private class UploadFormModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.MaxLength(200)]
+        public string Title { get; set; } = string.Empty;
+
+        public string Category { get; set; } = string.Empty;
+
+        public string? Description { get; set; }
+
+        public string ProjectId { get; set; } = string.Empty;
+
+        public string? Tags { get; set; }
+    }
+}

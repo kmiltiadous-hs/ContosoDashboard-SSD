@@ -23,13 +23,13 @@ Single ASP.NET Core project (`ContosoDashboard/`) extended in place, plus two ne
 
 **Purpose**: Project/tooling initialization for the feature's new projects and dependencies
 
-- [ ] T001 Create `ContosoDashboard.Tests` xUnit project in `ContosoDashboard.Tests/ContosoDashboard.Tests.csproj`, referencing `ContosoDashboard.csproj` and adding `Microsoft.EntityFrameworkCore.InMemory`
-- [ ] T002 Create `ContosoDashboard.ScanFunction` Azure Functions isolated-worker (.NET 8) project in `ContosoDashboard.ScanFunction/ContosoDashboard.ScanFunction.csproj`, referencing `ContosoDashboard.csproj` (for shared `IMalwareScanner`, models, `ApplicationDbContext`) and adding `Microsoft.Azure.Functions.Worker.Extensions.Storage.Queues`
-- [ ] T003 [P] Create `ContosoDashboard.ScanFunction.Tests` xUnit project in `ContosoDashboard.ScanFunction.Tests/ContosoDashboard.ScanFunction.Tests.csproj`, referencing `ContosoDashboard.ScanFunction.csproj`
-- [ ] T004 [P] Add `Azure.Storage.Queues` NuGet package reference to `ContosoDashboard/ContosoDashboard.csproj`
-- [ ] T005 [P] Add `DocumentStorage:RootPath`, `DocumentStorage:MaxFileSizeBytes`, `QueueStorage:ConnectionString`, `QueueStorage:ScanQueueName` settings to `ContosoDashboard/appsettings.json` and `ContosoDashboard/appsettings.Development.json` (Development pointing at `UseDevelopmentStorage=true` for Azurite)
-- [ ] T006 [P] Create `ContosoDashboard.ScanFunction/host.json` and `ContosoDashboard.ScanFunction/local.settings.json` (Azurite connection string + SQL Server LocalDB connection string for local/offline dev)
-- [ ] T007 [P] Document Azurite install/start steps (`npm install -g azurite` / `azurite --silent`) needed before local dev in `ContosoDashboard.ScanFunction/local.settings.json` comments or a short section appended to [quickstart.md](./quickstart.md)
+- [X] T001 Create `ContosoDashboard.Tests` xUnit project in `ContosoDashboard.Tests/ContosoDashboard.Tests.csproj`, referencing `ContosoDashboard.csproj` and adding `Microsoft.EntityFrameworkCore.InMemory`
+- [X] T002 Create `ContosoDashboard.ScanFunction` Azure Functions isolated-worker (.NET 8) project in `ContosoDashboard.ScanFunction/ContosoDashboard.ScanFunction.csproj`, referencing `ContosoDashboard.csproj` (for shared `IMalwareScanner`, models, `ApplicationDbContext`) and adding `Microsoft.Azure.Functions.Worker.Extensions.Storage.Queues`
+- [X] T003 [P] Create `ContosoDashboard.ScanFunction.Tests` xUnit project in `ContosoDashboard.ScanFunction.Tests/ContosoDashboard.ScanFunction.Tests.csproj`, referencing `ContosoDashboard.ScanFunction.csproj`
+- [X] T004 [P] Add `Azure.Storage.Queues` NuGet package reference to `ContosoDashboard/ContosoDashboard.csproj`
+- [X] T005 [P] Add `DocumentStorage:RootPath`, `DocumentStorage:MaxFileSizeBytes`, `QueueStorage:ConnectionString`, `QueueStorage:ScanQueueName` settings to `ContosoDashboard/appsettings.json` and `ContosoDashboard/appsettings.Development.json` (Development pointing at `UseDevelopmentStorage=true` for Azurite)
+- [X] T006 [P] Create `ContosoDashboard.ScanFunction/host.json` and `ContosoDashboard.ScanFunction/local.settings.json` (Azurite connection string + SQL Server LocalDB connection string for local/offline dev)
+- [X] T007 [P] Document Azurite install/start steps (`npm install -g azurite` / `azurite --silent`) needed before local dev in `ContosoDashboard.ScanFunction/local.settings.json` comments or a short section appended to [quickstart.md](./quickstart.md)
 
 **Checkpoint**: Solution builds with the two new empty projects wired into the existing solution/csproj references.
 
@@ -41,20 +41,20 @@ Single ASP.NET Core project (`ContosoDashboard/`) extended in place, plus two ne
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T008 [P] Create `Document` model (with `ScanStatus` enum, `RowVersion` concurrency token, `ContentHash`) in `ContosoDashboard/Models/Document.cs`
-- [ ] T009 [P] Create `DocumentShare` model in `ContosoDashboard/Models/DocumentShare.cs`
-- [ ] T010 [P] Create `DocumentActivityLog` model and `DocumentActivityType` enum in `ContosoDashboard/Models/DocumentActivityLog.cs`
-- [ ] T011 Update `ContosoDashboard/Data/ApplicationDbContext.cs`: add `DbSet<Document>`, `DbSet<DocumentShare>`, `DbSet<DocumentActivityLog>`; configure `Restrict`/`Cascade` deletes; add indexes on `UploadedByUserId`, `ProjectId`, `ScanStatus`, composite `(UploadedByUserId, Title, ProjectId, ContentHash)`, and unique index on `DocumentShare(DocumentId, SharedWithUserId)` (depends on T008, T009, T010)
-- [ ] T012 [P] Create `IFileStorageService` interface in `ContosoDashboard/Services/IFileStorageService.cs`
-- [ ] T013 [P] Create `LocalFileStorageService` implementation (`System.IO`-based, generates `{userId}/{projectId|"personal"}/{guid}.{ext}` path before writing) in `ContosoDashboard/Services/LocalFileStorageService.cs` (depends on T012)
-- [ ] T014 [P] Create `IMalwareScanner` interface and `ScanResult` record in `ContosoDashboard/Services/IMalwareScanner.cs` (shared with `ContosoDashboard.ScanFunction` via project reference)
-- [ ] T015 [P] Create `StubMalwareScanner` implementation in `ContosoDashboard/Services/StubMalwareScanner.cs` (depends on T014)
-- [ ] T016 [P] Create `IDocumentScanQueueClient` interface in `ContosoDashboard/Services/IDocumentScanQueueClient.cs`
-- [ ] T017 Create `AzureDocumentScanQueueClient` implementation (`Azure.Storage.Queues`-based, sends `{documentId, storagePath}` JSON message) in `ContosoDashboard/Services/AzureDocumentScanQueueClient.cs` (depends on T004, T016)
-- [ ] T018 [P] Create `UnauthorizedDocumentAccessException`, `DuplicateDocumentException`, `DocumentConcurrencyException` in `ContosoDashboard/Services/DocumentExceptions.cs`
-- [ ] T019 Create `IDocumentService` interface (all methods per [contracts/document-service-contract.md](./contracts/document-service-contract.md)) in `ContosoDashboard/Services/IDocumentService.cs` (depends on T008, T009)
-- [ ] T020 Register `IFileStorageService`, `IMalwareScanner`, `IDocumentScanQueueClient`, `IDocumentService` in DI, bind `DocumentStorage`/`QueueStorage` config sections, and add `AddControllers()`/`MapControllers()` in `ContosoDashboard/Program.cs` (depends on T012–T019)
-- [ ] T021 Scaffold `ContosoDashboard.ScanFunction/DocumentScanFunction.cs` with a `[Function]` bound to `[QueueTrigger("document-scan-queue")]`, and configure its isolated-worker `Program.cs`/DI to resolve `ApplicationDbContext`, `IFileStorageService`, and `IMalwareScanner` from `local.settings.json`/`host.json` config (depends on T002, T006, T011–T015)
+- [X] T008 [P] Create `Document` model (with `ScanStatus` enum, `RowVersion` concurrency token, `ContentHash`) in `ContosoDashboard/Models/Document.cs`
+- [X] T009 [P] Create `DocumentShare` model in `ContosoDashboard/Models/DocumentShare.cs`
+- [X] T010 [P] Create `DocumentActivityLog` model and `DocumentActivityType` enum in `ContosoDashboard/Models/DocumentActivityLog.cs`
+- [X] T011 Update `ContosoDashboard/Data/ApplicationDbContext.cs`: add `DbSet<Document>`, `DbSet<DocumentShare>`, `DbSet<DocumentActivityLog>`; configure `Restrict`/`Cascade` deletes; add indexes on `UploadedByUserId`, `ProjectId`, `ScanStatus`, composite `(UploadedByUserId, Title, ProjectId, ContentHash)`, and unique index on `DocumentShare(DocumentId, SharedWithUserId)` (depends on T008, T009, T010)
+- [X] T012 [P] Create `IFileStorageService` interface in `ContosoDashboard/Services/IFileStorageService.cs`
+- [X] T013 [P] Create `LocalFileStorageService` implementation (`System.IO`-based, generates `{userId}/{projectId|"personal"}/{guid}.{ext}` path before writing) in `ContosoDashboard/Services/LocalFileStorageService.cs` (depends on T012)
+- [X] T014 [P] Create `IMalwareScanner` interface and `ScanResult` record in `ContosoDashboard/Services/IMalwareScanner.cs` (shared with `ContosoDashboard.ScanFunction` via project reference)
+- [X] T015 [P] Create `StubMalwareScanner` implementation in `ContosoDashboard/Services/StubMalwareScanner.cs` (depends on T014)
+- [X] T016 [P] Create `IDocumentScanQueueClient` interface in `ContosoDashboard/Services/IDocumentScanQueueClient.cs`
+- [X] T017 Create `AzureDocumentScanQueueClient` implementation (`Azure.Storage.Queues`-based, sends `{documentId, storagePath}` JSON message) in `ContosoDashboard/Services/AzureDocumentScanQueueClient.cs` (depends on T004, T016)
+- [X] T018 [P] Create `UnauthorizedDocumentAccessException`, `DuplicateDocumentException`, `DocumentConcurrencyException` in `ContosoDashboard/Services/DocumentExceptions.cs`
+- [X] T019 Create `IDocumentService` interface (all methods per [contracts/document-service-contract.md](./contracts/document-service-contract.md)) in `ContosoDashboard/Services/IDocumentService.cs` (depends on T008, T009)
+- [X] T020 Register `IFileStorageService`, `IMalwareScanner`, `IDocumentScanQueueClient`, `IDocumentService` in DI, bind `DocumentStorage`/`QueueStorage` config sections, and add `AddControllers()`/`MapControllers()` in `ContosoDashboard/Program.cs` (depends on T012–T019)
+- [X] T021 Scaffold `ContosoDashboard.ScanFunction/DocumentScanFunction.cs` with a `[Function]` bound to `[QueueTrigger("document-scan-queue")]`, and configure its isolated-worker `Program.cs`/DI to resolve `ApplicationDbContext`, `IFileStorageService`, and `IMalwareScanner` from `local.settings.json`/`host.json` config (depends on T002, T006, T011–T015)
 
 **Checkpoint**: Foundation ready — user story implementation can now begin.
 
@@ -68,19 +68,19 @@ Single ASP.NET Core project (`ContosoDashboard/`) extended in place, plus two ne
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T022 [P] [US1] Unit tests for content-signature validation (magic-byte checks, FR-002) in `ContosoDashboard.Tests/Services/FileSignatureValidatorTests.cs`
-- [ ] T023 [P] [US1] Unit tests for duplicate-upload detection (FR-031) in `ContosoDashboard.Tests/Services/DuplicateDetectionTests.cs`
-- [ ] T024 [P] [US1] Unit tests for `LocalFileStorageService` (path generation before write, idempotent delete) in `ContosoDashboard.Tests/Storage/LocalFileStorageServiceTests.cs`
-- [ ] T025 [P] [US1] Unit tests for `DocumentScanFunction` clean-scan and rejected-scan outcomes (`ScanStatus` update, file deletion + `ScanRejected` log on failure) in `ContosoDashboard.ScanFunction.Tests/DocumentScanFunctionTests.cs`
+- [X] T022 [P] [US1] Unit tests for content-signature validation (magic-byte checks, FR-002) in `ContosoDashboard.Tests/Services/FileSignatureValidatorTests.cs`
+- [X] T023 [P] [US1] Unit tests for duplicate-upload detection (FR-031) in `ContosoDashboard.Tests/Services/DuplicateDetectionTests.cs`
+- [X] T024 [P] [US1] Unit tests for `LocalFileStorageService` (path generation before write, idempotent delete) in `ContosoDashboard.Tests/Storage/LocalFileStorageServiceTests.cs`
+- [X] T025 [P] [US1] Unit tests for `DocumentScanFunction` clean-scan and rejected-scan outcomes (`ScanStatus` update, file deletion + `ScanRejected` log on failure) in `ContosoDashboard.ScanFunction.Tests/DocumentScanFunctionTests.cs`
 
 ### Implementation for User Story 1
 
-- [ ] T026 [US1] Implement file content-signature validation helper (PDF/Office/JPEG/PNG magic-byte checks) in `ContosoDashboard/Services/FileSignatureValidator.cs`
-- [ ] T027 [US1] Implement `DocumentService.UploadAsync` — project-membership authorization, size/type validation via T026, `ContentHash` + duplicate check, save via `IFileStorageService`, insert `Document` (`PendingScan`), enqueue scan message via `IDocumentScanQueueClient` — in `ContosoDashboard/Services/DocumentService.cs` (depends on T011–T020, T026)
-- [ ] T028 [US1] Implement `DocumentScanFunction` body — dequeue message, call `IMalwareScanner.ScanAsync`, update `Document.ScanStatus` to `Available`/`Rejected`, delete file + log `ScanRejected` on failure — in `ContosoDashboard.ScanFunction/DocumentScanFunction.cs` (depends on T021)
-- [ ] T029 [US1] Build upload form (file picker, title/category/project/tags fields, client-side size/type hints, progress indicator, success/error messaging) in `ContosoDashboard/Pages/Documents.razor`
-- [ ] T030 [US1] Wire upload form submit to `IDocumentService.UploadAsync`, surfacing `DuplicateDocumentException`/validation errors as user-facing messages, in `ContosoDashboard/Pages/Documents.razor` (depends on T027, T029)
-- [ ] T031 [US1] Log `Upload` `DocumentActivityLog` entry on successful upload in `ContosoDashboard/Services/DocumentService.cs` (depends on T027)
+- [X] T026 [US1] Implement file content-signature validation helper (PDF/Office/JPEG/PNG magic-byte checks) in `ContosoDashboard/Services/FileSignatureValidator.cs`
+- [X] T027 [US1] Implement `DocumentService.UploadAsync` — project-membership authorization, size/type validation via T026, `ContentHash` + duplicate check, save via `IFileStorageService`, insert `Document` (`PendingScan`), enqueue scan message via `IDocumentScanQueueClient` — in `ContosoDashboard/Services/DocumentService.cs` (depends on T011–T020, T026)
+- [X] T028 [US1] Implement `DocumentScanFunction` body — dequeue message, call `IMalwareScanner.ScanAsync`, update `Document.ScanStatus` to `Available`/`Rejected`, delete file + log `ScanRejected` on failure — in `ContosoDashboard.ScanFunction/DocumentScanFunction.cs` (depends on T021)
+- [X] T029 [US1] Build upload form (file picker, title/category/project/tags fields, client-side size/type hints, progress indicator, success/error messaging) in `ContosoDashboard/Pages/Documents.razor`
+- [X] T030 [US1] Wire upload form submit to `IDocumentService.UploadAsync`, surfacing `DuplicateDocumentException`/validation errors as user-facing messages, in `ContosoDashboard/Pages/Documents.razor` (depends on T027, T029)
+- [X] T031 [US1] Log `Upload` `DocumentActivityLog` entry on successful upload in `ContosoDashboard/Services/DocumentService.cs` (depends on T027)
 
 **Checkpoint**: User Story 1 is fully functional and independently testable — uploads succeed, scan asynchronously via the Function, and rejected/duplicate/oversized files are handled correctly.
 - Note: Include comprehensive error handling for file size limits and unsupported types

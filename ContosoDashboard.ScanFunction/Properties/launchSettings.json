@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "ContosoDashboard.ScanFunction": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7089",
+      "launchBrowser": false
+    }
+  }
+}

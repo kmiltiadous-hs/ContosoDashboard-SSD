@@ -1,50 +1,105 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report
+==================
+Version change: [TEMPLATE] → 1.0.0 (initial ratification)
+Modified principles: n/a (first concrete adoption from placeholder template)
+Added sections:
+  - Core Principles: I. Secure by Design, II. Authorization Enforced at the
+    Service Layer, III. Secure Data & File Handling, IV. Test-First for
+    Security-Relevant Logic, V. Least Privilege & Auditability
+  - Technology & Architecture Constraints
+  - Development Workflow & Quality Gates
+  - Governance
+Removed sections: none (placeholder tokens replaced)
+Templates requiring updates:
+  - .specify/templates/plan-template.md — ⚠ pending manual review for
+    Constitution Check alignment with security-first principles
+  - .specify/templates/spec-template.md — ⚠ pending manual review to ensure
+    acceptance criteria prompt for auth/negative-path scenarios
+  - .specify/templates/tasks-template.md — ⚠ pending manual review to ensure
+    task categories include security test tasks
+Follow-up TODOs: none
+-->
+
+# ContosoDashboard Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Secure by Design
+Every feature MUST be designed with security as a first-class requirement, not an
+afterthought. All user input (form fields, file uploads, query parameters, route
+values) MUST be validated and sanitized at the point of entry using allow-lists
+(e.g., file extension/MIME whitelists) rather than deny-lists. Output rendered to
+the browser MUST be encoded to prevent injection (XSS, HTML injection). New
+dependencies and libraries MUST be evaluated for known vulnerabilities before
+adoption. Rationale: ContosoDashboard handles employee, project, and document data;
+vulnerabilities introduced early are the most expensive to remediate later.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. Authorization Enforced at the Service Layer (NON-NEGOTIABLE)
+Role and ownership checks (Employee/TeamLead/ProjectManager/Administrator, and
+resource-ownership such as "uploaded by" or "project member") MUST be enforced in
+services/business logic, never only in UI components or page markup. Every
+resource-access path (view, download, edit, delete, share) MUST verify the
+current user is authorized for that specific resource to prevent Insecure Direct
+Object Reference (IDOR) vulnerabilities. `[Authorize]` attributes and UI hiding
+are defense-in-depth additions, not substitutes for service-layer checks.
+Rationale: Blazor Server UI state can be manipulated or bypassed; only
+server-side authorization logic is trustworthy.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. Secure Data & File Handling
+Files and other untrusted data MUST be stored outside web-accessible directories
+(e.g., not under `wwwroot`) and served only through authorized controller
+endpoints. Stored filenames MUST be system-generated (e.g., GUID-based); raw
+user-supplied filenames MUST NEVER be used to construct file system paths, to
+prevent path traversal. Sensitive fields and secrets MUST NOT be logged or
+committed to source control. Rationale: Aligns with OWASP Top 10 guidance on
+injection and broken access control, and matches the stakeholder security
+requirements already defined for document management.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Test-First for Security-Relevant Logic (NON-NEGOTIABLE)
+Authorization rules, input validation, and file-handling logic MUST have
+automated tests written before or alongside implementation, covering both
+allowed and denied access paths (positive and negative cases). A feature MUST
+NOT be marked complete if only the "happy path" is tested. Rationale: Security
+regressions are typically introduced through untested edge cases (wrong role,
+wrong owner, malformed input).
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### V. Least Privilege & Auditability
+Components, services, and database roles MUST request only the access they need
+to perform their function. Actions that create, modify, delete, or share
+sensitive resources (documents, tasks, projects, user data) MUST be logged with
+enough context (who, what, when) to support an audit trail. Rationale: Supports
+incident response and compliance reporting expected by Administrators in the
+stakeholder requirements.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+## Technology & Architecture Constraints
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+ContosoDashboard is a Blazor Server (.NET 8) application with EF Core/SQL Server
+and cookie-based authentication. Training/demo constraints (e.g., mock
+authentication, local filesystem storage instead of cloud services) are
+permitted, but MUST be implemented behind interfaces (e.g.,
+`IFileStorageService`) so production-grade implementations can be substituted
+without changes to business logic, controllers, or UI. Security headers (CSP,
+HSTS, X-Frame-Options, etc.) configured in `Program.cs` MUST be preserved or
+strengthened, never weakened, by future changes.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+## Development Workflow & Quality Gates
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+All pull requests/changes touching authentication, authorization, file
+handling, or data access MUST include a brief security self-review noting how
+each Core Principle above was satisfied. Code review MUST verify: input
+validation exists, authorization is checked server-side, no secrets are
+exposed, and tests cover negative/denied-access cases. Complexity or deviation
+from these principles MUST be explicitly justified in the PR description.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution supersedes ad-hoc practices for this repository. Amendments
+require: (1) a documented rationale, (2) version bump per semantic versioning
+(MAJOR for incompatible principle removal/redefinition, MINOR for new/expanded
+principles or sections, PATCH for clarifications/wording), and (3) an updated
+Sync Impact Report recorded in this file's history. All PRs and code reviews
+MUST verify compliance with this constitution; unresolved violations block
+merge unless an explicit, reviewed exception is documented.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-08-17 | **Last Amended**: 2026-08-17
